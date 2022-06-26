@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 //Defining the post schema
-const postSchema = mongoose.Schema({  
+const postSchema = mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -9,7 +9,7 @@ const postSchema = mongoose.Schema({
   desc: String,
   createdBy: {
     type: String,
-    required: true
+    required: true,
   },
   createdAt: {
     type: Date,
@@ -18,11 +18,14 @@ const postSchema = mongoose.Schema({
   image: {
     type: String,
   },
-  isPrivate: Boolean,
+  isPrivate: {
+    type: Boolean,
+    default: false,
+  },
   isDeleted: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 //Exporting the model of post.
 module.exports = new mongoose.model("Post", postSchema);

@@ -1,12 +1,17 @@
 const express = require("express");
 const router = express.Router();
-
 const Tag = require("../models/tagModel");
 const tagPostMapModel = require("../models/tagPostMapModel");
+
 //Gives the tags and posts for a given tag(if includePosts is provided true in query params).
 router.get("/", async (req, res) => {
   try {
-    const tags = await Tag.find();
+    let tags =[]
+    if(req.query.tag){
+        tags.push(await Tag.findById(req.query.tag));
+    }else{
+        tags = await Tag.find();
+    }
     if (req.query.includePosts) {
       let tagsWithPosts = [];
       for (let t of tags) {
