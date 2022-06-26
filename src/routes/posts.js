@@ -1,12 +1,39 @@
+const { json } = require('express');
 const express = require('express');
 const router = express.Router();
-const Post = require('../models/postsModel')
+const Post = require('../models/postsModel');
+const tagPostMapModel = require('../models/tagPostMapModel');
+const Tag = require('../models/tagModel')
 
-//Gets back all the posts
+//Gets back all the posts || filtered posts || pagination
 router.get('/',async (req,res)=>{
+    let filter=req.query;
+    filter.isDeleted = false
+    if(req.query.skip){
+        var offset = req.query.skip
+         delete filter.skip
+    } 
+    if(req.query.limit){
+        var limit = req.query.limit;
+         delete filter.limit
+    } 
+     
     try{
-        const posts = await Post.find().limit(2);
-        res.json(posts)
+        let posts;
+        if(limit){
+             posts = await Post.find(filter).sort([['createdAt', -1]]).skip(offset|0).limit(limit);
+        }else{
+             posts = await Post.find(filter).sort([['createdAt', -1]]).skip(offset|0);
+        }
+        let postsWithTags = []
+        for(let p of posts) {
+            let post = JSON.parse(JSON.stringify(p))
+            const tag = await tagPostMapModel.find({postId:post._id, isEnabled: true}, {"_id": 1, "tagId": 1});
+
+            post.tags = tag
+            postsWithTags.push(post)
+        }
+        res.send(postsWithTags)
     }
     catch(err){
         res.send({errMsg:err})
@@ -15,7 +42,6 @@ router.get('/',async (req,res)=>{
 
 //Gets back a specific post by postId
 router.get('/:postId',async (req,res)=>{
-    console.log(req.params.postId);
     try{
         const post = await Post.findById(req.params.postId);
         res.send(post); 
@@ -24,22 +50,35 @@ router.get('/:postId',async (req,res)=>{
     }
 })
 
-//Submits a post
-router.post('/',(req,res)=>{
-    console.log(req.body);
-    const  post = new Post(req.body);
-    post.save().then(()=>{
-        res.status(201).send("Saved Successfully");
-    }).catch((err)=>{
-        res.status(400).send(err)
-    })
+//Creates a new post (& tags if given)
+router.post('/',async (req,res)=>{
+    try{
+        const post = new Post(req.body);
+        const savedPost = await Post.create(post)
+        if(req.body.tags) {
+            for(tag of req.body.tags){
+                const tagExist = await Tag.findById(tag)
+                if(tagExist){
+                    await tagPostMapModel.create({
+                        tagId: tag,
+                        postId: savedPost._id,
+                        cretedBy:savedPost.cretedBy
+                    })
+                }
+            }
+        }
+        res.status(201).send({success:true})
+    }catch(err){
+        res.status(400).send({success:false,error:err});
+    }
 });
 
-// Delete a post
+// Delete a post - we are doing the soft delete
 router.delete('/:postId', async (req,res)=>{
     try{
-        const removedPost = await Post.deleteOne({_id: req.params.postId});
-        res.json(removedPost)
+        await Post.updateOne({_id:req.params.postId},{$set:{isDeleted:true}});
+        await tagPostMapModel.updateAll({postId:req.params.postId},{$set:{isEnabled:false}})
+        res.json({success:true});
 
     }catch(err){
         res.send(err)
@@ -49,12 +88,17 @@ router.delete('/:postId', async (req,res)=>{
 //Update a post 
 router.patch('/:postId', async(req,res)=>{
     try{
-        const updatedPost = await Post.updateOne({_id:req.params.postId},{$set:{title:req.body.title}});
+        Object.keys(req.body).forEach((key)=>{
+            if(!['title','desc','isPrivate'].includes(key)){
+                delete req.body[key];       
+            }
+        })
+        const updatedPost = await Post.updateOne({_id:req.params.postId},{$set:req.body});
         res.send(updatedPost);
 
     }
     catch(err){
-        res.send(err)
+        res.send(err);
     }
 })
 

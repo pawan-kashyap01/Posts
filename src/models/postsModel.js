@@ -1,25 +1,28 @@
 const mongoose = require("mongoose");
 
 //Defining the post schema
-const postSchema = mongoose.Schema({
-  userId: {
+const postSchema = mongoose.Schema({  
+  title: {
     type: String,
     required: true,
   },
-  title: String,
-  desc: {
+  desc: String,
+  createdBy: {
     type: String,
-    required: true,
-    minlength: 10,
-    maxlength: 200 
+    required: true
   },
-  
-  comments: [{ body: String, date: Date }],
-  date: { 
+  createdAt: {
     type: Date,
-    default: Date.now
-   },
-  is_private: Boolean,
+    default: Date.now,
+  },
+  image: {
+    type: String,
+  },
+  isPrivate: Boolean,
+  isDeleted: {
+    type: Boolean,
+    default: false
+  }
 });
 //Exporting the model of post.
 module.exports = new mongoose.model("Post", postSchema);
